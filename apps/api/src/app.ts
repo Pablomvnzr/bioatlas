@@ -16,14 +16,12 @@ export function createApp(repository: ObservationRepository, logger = false) {
     request.log.error(error);
     const code =
       error instanceof Error && 'statusCode' in error && error.statusCode === 429 ? 429 : 500;
-    reply
-      .code(code)
-      .send({
-        message:
-          code === 429
-            ? 'Demasiadas consultas. Inténtalo más tarde.'
-            : 'No pudimos consultar los registros. Inténtalo nuevamente.',
-      });
+    reply.code(code).send({
+      message:
+        code === 429
+          ? 'Demasiadas consultas. Inténtalo más tarde.'
+          : 'No pudimos consultar los registros. Inténtalo nuevamente.',
+    });
   });
   return app;
 }
