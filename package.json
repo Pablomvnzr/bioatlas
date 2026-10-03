@@ -1,0 +1,25 @@
+{
+  "name": "bioatlas",
+  "private": true,
+  "version": "0.1.0",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "mobile": "pnpm --filter @bioatlas/mobile start",
+    "api": "pnpm --filter @bioatlas/api dev",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm --filter @bioatlas/api test",
+    "db:migrate": "pnpm --filter @bioatlas/api db:migrate",
+    "import:gbif": "pnpm --filter @bioatlas/api import:gbif",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3",
+    "@types/node": "^24.0.0",
+    "prettier": "^3.6.0"
+  },
+  "packageManager": "pnpm@11.25.0"
+}
