@@ -8,7 +8,7 @@ const pool = new pg.Pool({
   statement_timeout: 5000,
 });
 await pool.query('SELECT 1');
-const app = createApp(createRepository(pool), true);
+const app = createApp(createRepository(pool), true, pool);
 app.addHook('onClose', async () => {
   await pool.end();
 });

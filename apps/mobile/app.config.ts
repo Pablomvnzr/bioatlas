@@ -7,8 +7,6 @@ const config: ExpoConfig = {
   userInterfaceStyle: 'light',
   ios: { supportsTablet: true, bundleIdentifier: 'cl.bioatlas.mobile' },
   android: { package: 'cl.bioatlas.mobile' },
-  plugins: process.env.GOOGLE_MAPS_API_KEY
-    ? [['react-native-maps', { androidGoogleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY }]]
-    : [],
+  plugins: ['expo-secure-store'],
 };
 export default config;

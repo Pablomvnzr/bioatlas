@@ -11,36 +11,22 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import MapView, { Marker, type Region } from 'react-native-maps';
+import Map, { initialBounds } from '../../Map';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import type { Bounds, Observation } from '@bioatlas/contracts';
 import { getObservations } from '../../api';
 
-const initialRegion: Region = {
-  latitude: -39.8142,
-  longitude: -73.2459,
-  latitudeDelta: 0.12,
-  longitudeDelta: 0.14,
-};
-function toBounds(r: Region): Bounds {
-  return {
-    west: Math.max(-180, r.longitude - r.longitudeDelta / 2),
-    east: Math.min(180, r.longitude + r.longitudeDelta / 2),
-    south: Math.max(-90, r.latitude - r.latitudeDelta / 2),
-    north: Math.min(90, r.latitude + r.latitudeDelta / 2),
-  };
-}
 export default function ExplorerScreen() {
-  const [region, setRegion] = useState(initialRegion),
+  const [region, setRegion] = useState<Bounds>(initialBounds),
     [text, setText] = useState(''),
     [query, setQuery] = useState('');
   const [selected, setSelected] = useState<Observation | null>(null),
     [mode, setMode] = useState<'map' | 'list'>('map');
-  const [bounds, setBounds] = useState(toBounds(initialRegion));
+  const [bounds, setBounds] = useState(initialBounds);
   useEffect(() => {
     const timer = setTimeout(() => {
-      setBounds(toBounds(region));
+      setBounds(region);
       setQuery(text.trim());
     }, 400);
     return () => clearTimeout(timer);
@@ -100,21 +86,12 @@ export default function ExplorerScreen() {
       </View>
       <View style={s.content}>
         {mode === 'map' ? (
-          <MapView
-            style={StyleSheet.absoluteFill}
-            initialRegion={region}
-            onRegionChangeComplete={setRegion}
-          >
-            {items.map((item) => (
-              <Marker
-                key={item.id}
-                coordinate={{ latitude: item.latitude, longitude: item.longitude }}
-                pinColor="#245C50"
-                title={item.commonName ?? item.scientificName}
-                onPress={() => setSelected(item)}
-              />
-            ))}
-          </MapView>
+          <Map
+            items={items}
+            bounds={region}
+            onBounds={setRegion}
+            onSelect={(id) => setSelected(items.find((item) => item.id === id) ?? null)}
+          />
         ) : (
           <FlatList
             data={items}
@@ -124,7 +101,7 @@ export default function ExplorerScreen() {
           />
         )}
         {(result.isPending || result.isError || items.length === 0) && (
-          <View style={s.notice}>
+          <View style={[s.notice, mode === 'map' && s.mapNotice]}>
             {result.isPending ? (
               <>
                 <ActivityIndicator color="#245C50" />
@@ -197,7 +174,7 @@ export default function ExplorerScreen() {
               <Pressable
                 style={s.button}
                 accessibilityRole="link"
-                onPress={() => void Linking.openURL(selected.sourceUrl!)}
+                onPress={() => void Linking.openURL(selected.sourceUrl!).catch(() => {})}
               >
                 <Text style={s.buttonText}>Consultar fuente original ↗</Text>
               </Pressable>
@@ -247,6 +224,7 @@ const s = StyleSheet.create({
   scientific: { fontSize: 15, fontStyle: 'italic', color: '#65736A' },
   meta: { fontSize: 12, color: '#65736A', lineHeight: 18 },
   notice: { margin: 20, padding: 20, backgroundColor: '#FFFFFFF2', borderRadius: 16, gap: 10 },
+  mapNotice: { position: 'absolute', top: 45, left: 0, right: 0 },
   noticeTitle: { fontWeight: '700', fontSize: 16, color: '#203B30' },
   button: {
     backgroundColor: '#245C50',
