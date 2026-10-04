@@ -81,6 +81,8 @@ Para builds Android propios se necesita una clave de Google Maps restringida por
 
 EAS Build permite compilar en la nube desde Windows. El simulador iOS local requiere macOS/Xcode. Las builds iOS para dispositivos y la distribución requieren configurar las credenciales de Apple correspondientes; no se han creado cuentas, firmado binarios ni publicado en tiendas.
 
+La configuración `apps/mobile/eas.json` incluye `preview` para APK Android y distribución interna iOS, `ios-simulator` para simulador de Mac y `production` para tiendas. Desde `apps/mobile`, iniciar sesión con `pnpm dlx eas-cli login`, vincular el proyecto con `pnpm dlx eas-cli init` y configurar `EXPO_PUBLIC_API_URL` con una API HTTPS accesible desde el dispositivo. Para Android, configurar además `GOOGLE_MAPS_API_KEY`. Después, ejecutar `pnpm dlx eas-cli build --platform android --profile preview` o el equivalente con `--platform ios`. Revisar el plan de Expo antes de lanzar builds; no se han solicitado compilaciones de pago. El perfil iOS interno necesita credenciales y registro de dispositivos.
+
 Para producción: desplegar la API detrás de HTTPS, usar credenciales de base de datos distintas de las de desarrollo y un usuario de solo lectura para el servidor. Mantener la cuenta de migración/importación separada. Las credenciales del compose son únicamente locales, con el puerto restringido a localhost. No enviar `DATABASE_URL` al cliente ni guardar `.env` en Git.
 
 ## Alcance
