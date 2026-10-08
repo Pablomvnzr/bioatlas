@@ -3,6 +3,7 @@ import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { boundsSchema, type Bounds, type Observation } from '@bioatlas/contracts';
 import { apiBase } from './api';
+import { colors } from './ui/theme';
 
 export const initialBounds: Bounds = {
   west: -73.3159,
@@ -100,7 +101,9 @@ export default function Map({
       />
       {failed && (
         <View style={s.notice}>
-          <Text>No pudimos cargar el mapa. Comprueba la conexión.</Text>
+          <Text style={{ color: colors.ink, lineHeight: 20 }}>
+            No pudimos cargar el mapa. Comprueba la conexión.
+          </Text>
           <Pressable
             accessibilityRole="button"
             onPress={() => {
@@ -120,12 +123,14 @@ export default function Map({
 const s = StyleSheet.create({
   notice: {
     position: 'absolute',
-    top: 12,
-    left: 50,
-    right: 12,
+    bottom: 28,
+    left: 20,
+    right: 20,
     padding: 12,
-    backgroundColor: '#fff',
-    borderRadius: 10,
+    backgroundColor: colors.paper,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
   },
-  retry: { color: '#245C50', fontWeight: '700', paddingTop: 8 },
+  retry: { color: colors.green, fontWeight: '700', paddingVertical: 12 },
 });

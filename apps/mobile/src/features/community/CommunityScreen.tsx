@@ -17,6 +17,7 @@ import { reportInputSchema, reportsSchema, sessionSchema, type Report } from '@b
 import { useSession } from '../../Session';
 import { apiRequest } from '../../api';
 import Map from '../../Map';
+import { colors, serif } from '../../ui/theme';
 
 function Button({
   title,
@@ -32,7 +33,7 @@ function Button({
       accessibilityRole="button"
       disabled={disabled}
       onPress={onPress}
-      style={[s.button, disabled && { opacity: 0.5 }]}
+      style={({ pressed }) => [s.button, (disabled || pressed) && { opacity: 0.5 }]}
     >
       <Text style={s.buttonText}>{title}</Text>
     </Pressable>
@@ -57,6 +58,8 @@ function Field({
     <View style={{ gap: 5 }}>
       <Text style={s.label}>{label}</Text>
       <TextInput
+        placeholderTextColor={colors.muted}
+        selectionColor={colors.green}
         accessibilityLabel={label}
         style={[s.input, multiline && { minHeight: 90, textAlignVertical: 'top' }]}
         value={value}
@@ -190,14 +193,25 @@ export default function CommunityScreen() {
       ? { latitude: Number(latitude), longitude: Number(longitude) }
       : undefined;
   return (
-    <SafeAreaView style={s.page}>
+    <SafeAreaView style={s.page} edges={['top', 'left', 'right']}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.content}>
-          <Text style={s.title}>{session ? 'Comunidad' : 'Tu cuenta'}</Text>
-          <Text style={s.muted}>Comparte lo que observas en los humedales de Valdivia.</Text>
+          <View style={s.header}>
+            <Text style={s.eyebrow}>BIOATLAS · COMUNIDAD</Text>
+            <Text style={s.title}>
+              {session
+                ? tab === 'new'
+                  ? 'Nuevo avistamiento'
+                  : tab === 'admin'
+                    ? 'Revisar aportes'
+                    : 'Mi Atlas'
+                : 'Tu cuenta'}
+            </Text>
+            <Text style={s.muted}>Comparte lo que observas en los humedales de Valdivia.</Text>
+          </View>
           {loading ? (
             <ActivityIndicator />
           ) : !session ? (
@@ -232,7 +246,19 @@ export default function CommunityScreen() {
             </>
           ) : (
             <>
-              <Text style={s.heading}>Hola, {session.user.name}</Text>
+              <View style={s.profile}>
+                <View style={s.avatar}>
+                  <Text style={s.initial}>{session.user.name.trim().charAt(0).toUpperCase()}</Text>
+                </View>
+                <View style={{ flex: 1, gap: 4 }}>
+                  <Text style={s.heading}>{session.user.name}</Text>
+                  <Text style={s.muted}>
+                    {session.user.role === 'admin'
+                      ? 'Revisión de la comunidad'
+                      : 'Comunidad naturalista'}
+                  </Text>
+                </View>
+              </View>
               <View style={s.tabs}>
                 {(
                   ['mine', 'new', ...(session.user.role === 'admin' ? ['admin'] : [])] as const
@@ -244,7 +270,12 @@ export default function CommunityScreen() {
                     accessibilityState={{ selected: tab === value }}
                     onPress={() => changeTab(value as typeof tab)}
                   >
-                    <Text style={{ color: tab === value ? '#fff' : '#245C50' }}>
+                    <Text
+                      style={{
+                        color: tab === value ? colors.paper : colors.muted,
+                        fontWeight: '600',
+                      }}
+                    >
                       {value === 'mine' ? 'Mis registros' : value === 'new' ? 'Avistar' : 'Revisar'}
                     </Text>
                   </Pressable>
@@ -252,11 +283,11 @@ export default function CommunityScreen() {
               </View>
               {tab === 'new' ? (
                 <>
-                  <Text style={s.heading}>Nuevo avistamiento</Text>
+                  <Text style={s.heading}>Tu observación</Text>
                   <Field label="Especie observada" value={species} onChange={setSpecies} />
                   <Field label="Fecha (AAAA-MM-DD)" value={date} onChange={setDate} />
                   <Field
-                    label="Descripción"
+                    label="Notas de campo"
                     value={description}
                     onChange={setDescription}
                     multiline
@@ -304,13 +335,26 @@ export default function CommunityScreen() {
                       {reports.data.items.map((report) => (
                         <View key={report.id} style={s.card}>
                           <Text style={s.heading}>{report.scientificName}</Text>
-                          <Text style={s.badge}>{statusLabels[report.status]}</Text>
-                          <Text>{report.description}</Text>
+                          <Text
+                            style={[
+                              s.badge,
+                              report.status === 'approved'
+                                ? s.approved
+                                : report.status === 'rejected'
+                                  ? s.rejected
+                                  : s.pending,
+                            ]}
+                          >
+                            {statusLabels[report.status]}
+                          </Text>
+                          <Text style={s.body}>{report.description}</Text>
                           <Text style={s.muted}>
                             {report.eventDate} · {report.latitude.toFixed(5)},{' '}
                             {report.longitude.toFixed(5)}
                           </Text>
-                          {report.reviewNote && <Text>Revisión: {report.reviewNote}</Text>}
+                          {report.reviewNote && (
+                            <Text style={s.body}>Revisión: {report.reviewNote}</Text>
+                          )}
                           {tab === 'admin' && (
                             <Button
                               title="Revisar avistamiento"
@@ -400,34 +444,104 @@ export default function CommunityScreen() {
   );
 }
 const s = StyleSheet.create({
-  page: { flex: 1, backgroundColor: '#F5F5EE' },
-  content: { padding: 22, gap: 14, paddingBottom: 36 },
-  title: { fontSize: 30, fontWeight: '800', color: '#173C32' },
-  heading: { fontSize: 18, fontWeight: '700', color: '#203B30' },
-  muted: { fontSize: 13, color: '#65736A', lineHeight: 19 },
-  label: { fontSize: 13, fontWeight: '600', color: '#203B30' },
+  page: { flex: 1, backgroundColor: colors.background },
+  content: {
+    padding: 24,
+    gap: 18,
+    paddingBottom: 36,
+    width: '100%',
+    maxWidth: 640,
+    alignSelf: 'center',
+  },
+  header: { gap: 8, paddingBottom: 6 },
+  eyebrow: { fontSize: 10, fontWeight: '700', letterSpacing: 1.8, color: colors.muted },
+  title: {
+    fontFamily: serif,
+    fontSize: 34,
+    fontWeight: '700',
+    color: colors.ink,
+    letterSpacing: -0.8,
+  },
+  heading: { fontFamily: serif, fontSize: 22, fontWeight: '700', color: colors.ink },
+  muted: { fontSize: 13, color: colors.muted, lineHeight: 20 },
+  body: { fontSize: 15, color: colors.ink, lineHeight: 23 },
+  profile: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 8 },
+  avatar: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: colors.sage,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  initial: { fontFamily: serif, fontSize: 28, color: colors.green, fontWeight: '700' },
+  label: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.muted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.paper,
     borderWidth: 1,
-    borderColor: '#DEE5DA',
-    borderRadius: 10,
-    padding: 12,
-    color: '#203B30',
+    borderColor: colors.border,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    minHeight: 52,
+    color: colors.ink,
     fontSize: 16,
   },
-  button: { backgroundColor: '#245C50', padding: 13, borderRadius: 10, alignItems: 'center' },
-  buttonText: { color: '#fff', fontWeight: '700' },
-  link: { color: '#245C50', paddingVertical: 10, fontWeight: '600' },
+  button: {
+    backgroundColor: colors.green,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    minHeight: 52,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonText: { color: colors.paper, fontWeight: '700', fontSize: 15, textAlign: 'center' },
+  link: { color: colors.green, paddingVertical: 14, fontWeight: '600' },
   message: {
-    padding: 14,
-    backgroundColor: '#E6ECE2',
-    borderRadius: 10,
-    color: '#173C32',
+    padding: 18,
+    backgroundColor: colors.sage,
+    borderRadius: 14,
+    color: colors.green,
     lineHeight: 21,
   },
-  tabs: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  tab: { padding: 10, borderRadius: 10, backgroundColor: '#E6ECE2' },
-  active: { backgroundColor: '#245C50' },
-  card: { padding: 16, gap: 10, backgroundColor: '#fff', borderRadius: 14 },
-  badge: { color: '#8B641E', fontSize: 12, fontWeight: '700' },
+  tabs: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', paddingVertical: 4 },
+  tab: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    borderRadius: 24,
+    backgroundColor: colors.paper,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  active: { backgroundColor: colors.green, borderColor: colors.green },
+  card: {
+    padding: 18,
+    gap: 12,
+    backgroundColor: colors.paper,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  badge: {
+    alignSelf: 'flex-start',
+    overflow: 'hidden',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  approved: { color: colors.green, backgroundColor: colors.sage },
+  pending: { color: colors.amber, backgroundColor: colors.amberLight },
+  rejected: { color: colors.red, backgroundColor: colors.redLight },
 });
