@@ -4,7 +4,8 @@ const files = {'/':'index.html','/index.html':'index.html','/style.css':'style.c
 for (const name of ['leaflet.js', 'leaflet.css']) {
   files['/leaflet/' + name] = 'leaflet/' + name;
 }
-const types = {html:'text/html; charset=utf-8',css:'text/css',js:'text/javascript',png:'image/png'};
+files['/assets/valdivia.json'] = 'assets/valdivia.json';
+const types = {json:'application/json',html:'text/html; charset=utf-8',css:'text/css',js:'text/javascript',png:'image/png'};
 createServer(async(req,res)=>{
  const url=new URL(req.url,'http://localhost');
  if(url.pathname==='/v1/observations'){
