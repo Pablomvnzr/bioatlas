@@ -1,0 +1,27 @@
+name: Publish BioAtlas
+
+on:
+  push:
+    branches: [Pablo]
+    paths:
+      - apps/website/dist/**
+      - .github/workflows/pages.yml
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.publish.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/website/dist
+      - id: publish
+        uses: actions/deploy-pages@v4
