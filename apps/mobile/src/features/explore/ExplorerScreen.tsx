@@ -14,15 +14,41 @@ import {
 import Map, { initialBounds } from '../../Map';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
-import type { Bounds, Observation } from '@bioatlas/contracts';
-import { getObservations } from '../../api';
+import { zonesSchema, type Zone, type Bounds, type Observation } from '@bioatlas/contracts';
+import { apiRequest, getObservations } from '../../api';
+import MediaGallery from '../media/MediaGallery';
+import ZoneInformation, { zoneSections, type ZoneSection } from './ZoneInformation';
+import BiotopeMap from './BiotopeMap';
 
 export default function ExplorerScreen() {
+  const [biotopeMap, setBiotopeMap] = useState(false);
+  const [guideSection, setGuideSection] = useState<ZoneSection | undefined>();
   const [region, setRegion] = useState<Bounds>(initialBounds),
     [text, setText] = useState(''),
     [query, setQuery] = useState('');
   const [selected, setSelected] = useState<Observation | null>(null),
-    [mode, setMode] = useState<'map' | 'list'>('map');
+    [mode, setMode] = useState<'map' | 'list' | 'zones'>('map');
+  const [zone, setZone] = useState<Zone | null>(null),
+    [zoneDetails, setZoneDetails] = useState(false);
+  const [focusBounds, setFocusBounds] = useState<Bounds | undefined>();
+  const [overview, setOverview] = useState(initialBounds);
+  const zones = useQuery({
+    queryKey: ['zones'],
+    queryFn: async () => zonesSchema.parse(await apiRequest('/v1/zones')),
+    staleTime: 60000,
+  });
+  function exploreZone(id: string) {
+    const next = zones.data?.items.find((z) => z.id === id);
+    if (!next) return;
+    if (!zone) setOverview(region);
+    setZone(next);
+    setGuideSection(undefined);
+    setZoneDetails(true);
+    setRegion(next.bounds);
+    setBounds(next.bounds);
+    setFocusBounds(next.bounds);
+    setMode('map');
+  }
   const [bounds, setBounds] = useState(initialBounds);
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -32,8 +58,8 @@ export default function ExplorerScreen() {
     return () => clearTimeout(timer);
   }, [region, text]);
   const result = useQuery({
-    queryKey: ['observations', bounds, query],
-    queryFn: ({ signal }) => getObservations(bounds, query, signal),
+    queryKey: ['observations', bounds, query, zone?.id],
+    queryFn: ({ signal }) => getObservations(bounds, query, signal, zone?.id),
   });
   const items = result.data?.items ?? [];
   const row = ({ item }: { item: Observation }) => (
@@ -69,7 +95,7 @@ export default function ExplorerScreen() {
           returnKeyType="search"
         />
         <View style={s.tabs}>
-          {(['map', 'list'] as const).map((value) => (
+          {(['map', 'list', 'zones'] as const).map((value) => (
             <Pressable
               key={value}
               style={[s.tab, mode === value && s.activeTab]}
@@ -78,11 +104,67 @@ export default function ExplorerScreen() {
               accessibilityState={{ selected: mode === value }}
             >
               <Text style={[s.tabText, mode === value && s.activeText]}>
-                {value === 'map' ? 'Mapa' : 'Lista'}
+                {value === 'map' ? 'Mapa' : value === 'list' ? 'Lista' : 'Zonas'}
               </Text>
             </Pressable>
           ))}
         </View>
+        {zone && (
+          <View style={{ gap: 6 }}>
+            <Text
+              style={[
+                s.cardTitle,
+                { borderLeftWidth: 6, borderLeftColor: zone.color, paddingLeft: 8 },
+              ]}
+            >
+              {zone.name}
+            </Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {(Object.keys(zoneSections) as ZoneSection[]).map((kind) => {
+                const section = zoneSections[kind];
+                return (
+                  <Pressable
+                    key={kind}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${section.title} de ${zone.name}`}
+                    onPress={() => {
+                      setGuideSection(kind);
+                      setZoneDetails(true);
+                    }}
+                    style={({ pressed }) => ({
+                      backgroundColor: section.color,
+                      borderRadius: 10,
+                      padding: 12,
+                      minHeight: 48,
+                      width: '48%',
+                      justifyContent: 'center',
+                      opacity: pressed ? 0.8 : 1,
+                    })}
+                  >
+                    <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>
+                      {section.symbol} {section.title} +
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <View>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  setZone(null);
+                  setRegion(overview);
+                  setBounds(overview);
+                  setFocusBounds(overview);
+                }}
+              >
+                <Text style={{ color: '#245C50', fontWeight: '700', paddingVertical: 8 }}>
+                  ← Volver al mapa general
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
       </View>
       <View style={s.content}>
         {mode === 'map' ? (
@@ -91,7 +173,53 @@ export default function ExplorerScreen() {
             bounds={region}
             onBounds={setRegion}
             onSelect={(id) => setSelected(items.find((item) => item.id === id) ?? null)}
+            zones={zones.data?.items}
+            selectedZoneId={zone?.id}
+            onExploreZone={exploreZone}
+            focusBounds={focusBounds}
           />
+        ) : mode === 'zones' ? (
+          <ScrollView contentContainerStyle={s.list}>
+            <Text style={s.noticeTitle}>Explora las zonas de Valdivia</Text>
+            <Text style={s.meta}>
+              Los colores identifican macrozonas. Las áreas de referencia de iNaturalist requieren
+              validación para clasificarlas como biotopos.
+            </Text>
+            {zones.isPending ? (
+              <ActivityIndicator />
+            ) : zones.isError ? (
+              <Pressable accessibilityRole="button" onPress={() => void zones.refetch()}>
+                <Text>No pudimos cargar las zonas. Toca para reintentar.</Text>
+              </Pressable>
+            ) : !zones.data.items.length ? (
+              <Text>No hay zonas cargadas todavía.</Text>
+            ) : (
+              zones.data.items.map((item) => (
+                <View
+                  key={item.id}
+                  style={[s.card, { borderLeftWidth: 7, borderLeftColor: item.color }]}
+                >
+                  <Text style={s.cardTitle}>{item.name}</Text>
+                  <Text style={s.meta}>
+                    {item.kind === 'macrozone'
+                      ? 'Macrozona'
+                      : item.kind === 'biotope'
+                        ? 'Biotopo'
+                        : 'Área de referencia'}{' '}
+                    · {item.observationCount} registros
+                  </Text>
+                  <Pressable
+                    style={s.button}
+                    accessibilityRole="button"
+                    onPress={() => exploreZone(item.id)}
+                  >
+                    <Text style={s.buttonText}>Ver cultura, árboles y flora →</Text>
+                  </Pressable>
+                </View>
+              ))
+            )}
+            {zones.data?.hasMore && <Text>Se muestran las primeras 200 zonas.</Text>}
+          </ScrollView>
         ) : (
           <FlatList
             data={items}
@@ -100,7 +228,7 @@ export default function ExplorerScreen() {
             contentContainerStyle={s.list}
           />
         )}
-        {(result.isPending || result.isError || items.length === 0) && (
+        {mode !== 'zones' && (result.isPending || result.isError || items.length === 0) && (
           <View style={[s.notice, mode === 'map' && s.mapNotice]}>
             {result.isPending ? (
               <>
@@ -142,6 +270,73 @@ export default function ExplorerScreen() {
         </Text>
       </View>
       <Modal
+        visible={zoneDetails && zone !== null}
+        animationType="slide"
+        onRequestClose={() => setZoneDetails(false)}
+      >
+        <SafeAreaView style={s.page}>
+          <ScrollView contentContainerStyle={s.detail}>
+            <Pressable accessibilityRole="button" onPress={() => setZoneDetails(false)}>
+              <Text style={s.close}>Cerrar ✕</Text>
+            </Pressable>
+            <Text style={s.detailTitle}>{zone?.name}</Text>
+            <Pressable
+              accessibilityRole="button"
+              style={[s.button, { backgroundColor: '#235E87' }]}
+              onPress={() => {
+                setZoneDetails(false);
+                setBiotopeMap(true);
+              }}
+            >
+              <Text style={s.buttonText}>🗺 Explorar biotopos · Mapa de detalle</Text>
+            </Pressable>
+            {zone && (
+              <ZoneInformation
+                key={zone.id + guideSection}
+                zone={zone}
+                initialSection={guideSection}
+              />
+            )}
+            <Text style={s.value}>{zone?.description}</Text>
+            <Pressable
+              accessibilityRole="button"
+              style={s.button}
+              onPress={() => setZoneDetails(false)}
+            >
+              <Text style={s.buttonText}>Explorar esta zona en el mapa</Text>
+            </Pressable>
+            <Text style={s.meta}>Fuente: {zone?.source}</Text>
+            {zone?.sourceUrl?.startsWith('https://') && (
+              <Pressable
+                accessibilityRole="link"
+                onPress={() => void Linking.openURL(zone.sourceUrl!).catch(() => {})}
+              >
+                <Text style={s.close}>Consultar fuente de los límites ↗</Text>
+              </Pressable>
+            )}
+            {zone && <MediaGallery zoneId={zone.id} />}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+      <Modal
+        visible={biotopeMap && zone !== null}
+        animationType="slide"
+        onRequestClose={() => {
+          setBiotopeMap(false);
+          setZoneDetails(true);
+        }}
+      >
+        {zone && (
+          <BiotopeMap
+            zone={zone}
+            onClose={() => {
+              setBiotopeMap(false);
+              setZoneDetails(true);
+            }}
+          />
+        )}
+      </Modal>
+      <Modal
         visible={selected !== null}
         animationType="slide"
         presentationStyle="pageSheet"
@@ -155,10 +350,25 @@ export default function ExplorerScreen() {
             <Text style={s.eyebrow}>REGISTRO DE BIODIVERSIDAD</Text>
             <Text style={s.detailTitle}>{selected?.commonName ?? selected?.scientificName}</Text>
             <Text style={s.scientific}>{selected?.scientificName}</Text>
+            {selected?.reportId && <MediaGallery reportId={selected.reportId} />}
             {selected &&
               [
                 ['Fecha', selected.eventDate ?? 'No disponible'],
                 ['Fuente', selected.source],
+                ['Observador', selected.observerName ?? 'No disponible'],
+                ...(selected.qualityGrade
+                  ? [
+                      [
+                        'Revisión en la fuente',
+                        selected.qualityGrade === 'research'
+                          ? 'Grado de investigación en iNaturalist'
+                          : selected.qualityGrade,
+                      ],
+                    ]
+                  : []),
+                ...(selected.accuracyM != null
+                  ? [['Precisión indicada', `${selected.accuracyM} metros`]]
+                  : []),
                 ['Licencia', selected.license ?? 'No disponible'],
                 [
                   'Coordenadas',

@@ -28,25 +28,30 @@ async function verifyPassword(password: string, encoded: string) {
 const columns = `id::text, scientific_name AS "scientificName", description, latitude, longitude,
   event_date::text AS "eventDate", status, review_note AS "reviewNote", created_at::text AS "createdAt"`;
 
+function bearer(request: FastifyRequest) {
+  const token = request.headers.authorization?.match(/^Bearer ([a-f0-9]{64})$/)?.[1];
+  if (!token) throw failure(401, 'Inicia sesión para continuar.');
+  return token;
+}
+export async function authenticateUser(
+  pool: Pool,
+  request: FastifyRequest,
+  admin = false,
+): Promise<User> {
+  const result = await pool.query<User>(
+    `SELECT u.id::text,u.name,u.email,u.role FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=$1 AND s.expires_at>now()`,
+    [digest(bearer(request))],
+  );
+  const user = result.rows[0];
+  if (!user) throw failure(401, 'Tu sesión venció. Vuelve a iniciar sesión.');
+  if (admin && user.role !== 'admin') throw failure(403, 'Esta función requiere un administrador.');
+  return user;
+}
+
 export function registerCommunity(app: FastifyInstance, pool: Pool) {
   const dummyHash = hashPassword(randomBytes(32).toString('hex'));
-  function bearer(request: FastifyRequest) {
-    const token = request.headers.authorization?.match(/^Bearer ([a-f0-9]{64})$/)?.[1];
-    if (!token) throw failure(401, 'Inicia sesión para continuar.');
-    return token;
-  }
-  async function authenticate(request: FastifyRequest, admin = false): Promise<User> {
-    const result = await pool.query<User>(
-      `SELECT u.id::text,u.name,u.email,u.role FROM sessions s
-      JOIN users u ON u.id=s.user_id WHERE s.token_hash=$1 AND s.expires_at>now()`,
-      [digest(bearer(request))],
-    );
-    const user = result.rows[0];
-    if (!user) throw failure(401, 'Tu sesión venció. Vuelve a iniciar sesión.');
-    if (admin && user.role !== 'admin')
-      throw failure(403, 'Esta función requiere un administrador.');
-    return user;
-  }
+  const authenticate = (request: FastifyRequest, admin = false) =>
+    authenticateUser(pool, request, admin);
   async function session(user: User) {
     const token = randomBytes(32).toString('hex');
     await pool.query('DELETE FROM sessions WHERE user_id=$1 AND expires_at<=now()', [user.id]);

@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: bioatlas-api
+    runtime: docker
+    plan: free
+    region: virginia
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MEDIA_STORAGE
+        value: supabase
+      - key: MEDIA_LOCAL_DIR
+        value: /app/apps/api/data/media-temp
+      - key: MONGODB_DATABASE
+        value: bioatlas
+      - key: SUPABASE_STORAGE_BUCKET
+        value: bioatlas-media
+      - key: DATABASE_URL
+        sync: false
+      - key: MONGODB_URI
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false

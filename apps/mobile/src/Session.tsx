@@ -39,6 +39,7 @@ export function SessionProvider({ children }: React.PropsWithChildren) {
     if (value) await SecureStore.setItemAsync('bioatlas-session', JSON.stringify(value));
     else await SecureStore.deleteItemAsync('bioatlas-session');
     queryClient.removeQueries({ queryKey: ['reports'] });
+    queryClient.removeQueries({ queryKey: ['media'] });
     setSession(value);
   }
   return <Context.Provider value={{ session, loading, save }}>{children}</Context.Provider>;

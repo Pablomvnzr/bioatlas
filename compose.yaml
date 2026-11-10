@@ -14,5 +14,18 @@ services:
       interval: 5s
       timeout: 3s
       retries: 15
+  mongo:
+    image: mongo:8.0
+    profiles: ['media']
+    ports:
+      - '127.0.0.1:27017:27017'
+    volumes:
+      - bioatlas_mongo:/data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', 'db.adminCommand({ping:1}).ok']
+      interval: 5s
+      timeout: 5s
+      retries: 15
 volumes:
   bioatlas_db:
+  bioatlas_mongo:

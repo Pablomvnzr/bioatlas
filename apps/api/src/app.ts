@@ -5,14 +5,26 @@ import type { ObservationRepository } from './repository.ts';
 import type { Pool } from 'pg';
 import { registerCommunity } from './community.ts';
 import { registerMap } from './map.ts';
-export function createApp(repository: ObservationRepository, logger = false, pool?: Pool) {
+import { registerZones } from './zones.ts';
+import { registerMedia, type MediaService } from './media.ts';
+export function createApp(
+  repository: ObservationRepository,
+  logger = false,
+  pool?: Pool,
+  media?: MediaService,
+) {
   const app = Fastify({
+    trustProxy: process.env.RENDER === 'true' ? (_address, index) => index < 1 : false,
     logger: logger ? { redact: ['req.headers.authorization', 'req.headers.cookie'] } : false,
     bodyLimit: 16384,
   });
   app.register(rateLimit, { max: 120, timeWindow: '1 minute' });
   registerMap(app);
-  if (pool) registerCommunity(app, pool);
+  if (pool) {
+    registerCommunity(app, pool);
+    registerZones(app, pool);
+    registerMedia(app, pool, media);
+  }
   app.get('/health', async () => ({ status: 'ok' }));
   app.get('/v1/observations', async (request, reply) => {
     const query = searchSchema.safeParse(request.query);
@@ -23,12 +35,12 @@ export function createApp(repository: ObservationRepository, logger = false, poo
   app.setErrorHandler((error, request, reply) => {
     request.log.error(error);
     const status = error instanceof Error && 'statusCode' in error ? Number(error.statusCode) : 500;
-    const code = status >= 400 && status < 500 ? status : 500;
+    const code = (status >= 400 && status < 500) || status === 503 ? status : 500;
     reply.code(code).send({
       message:
         code === 429
           ? 'Demasiadas consultas. Inténtalo más tarde.'
-          : code < 500 && error instanceof Error
+          : code !== 500 && error instanceof Error
             ? error.message
             : 'No pudimos completar la solicitud. Inténtalo nuevamente.',
     });

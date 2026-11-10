@@ -41,10 +41,16 @@ export async function apiRequest(
     signal?.removeEventListener('abort', cancel);
   }
 }
-export async function getObservations(bounds: Bounds, q: string, signal: AbortSignal) {
+export async function getObservations(
+  bounds: Bounds,
+  q: string,
+  signal: AbortSignal,
+  zoneId?: string,
+) {
   const params = new URLSearchParams({
     ...Object.fromEntries(Object.entries(bounds).map(([key, value]) => [key, String(value)])),
     q,
+    ...(zoneId ? { zoneId } : {}),
   });
   return resultsSchema.parse(
     await apiRequest(`/v1/observations?${params}`, undefined, 'GET', undefined, signal),

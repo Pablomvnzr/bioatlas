@@ -17,7 +17,10 @@
     "csv-parse": "^6.0.0",
     "fastify": "^5.0.0",
     "leaflet": "1.9.4",
-    "pg": "^8.0.0"
+    "pg": "^8.0.0",
+    "mongodb": "^6.0.0",
+    "@google-cloud/storage": "^7.0.0",
+    "@fastify/multipart": "^9.0.0"
   },
   "devDependencies": {
     "@types/pg": "^8.0.0"

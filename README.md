@@ -32,7 +32,7 @@ Requisitos: Node.js 24, pnpm 11 y Docker Desktop con el motor Linux activo.
 
 1. Ejecutar `pnpm install` en la raíz.
 2. Copiar `apps/api/.env.example` a `apps/api/.env` y `apps/mobile/.env.example` a `apps/mobile/.env`.
-3. Ejecutar `docker compose up -d` y esperar a que la base esté saludable.
+3. Ejecutar `docker compose --profile media up -d` y esperar a que la base esté saludable.
 4. Ejecutar `pnpm db:migrate`. Es repetible; registra las migraciones aplicadas.
 5. Ejecutar `pnpm api` en una terminal.
 6. En el `.env` móvil, reemplazar la IP de ejemplo por la IP local real del equipo que ejecuta la API. El teléfono y el equipo deben compartir red. Android Emulator utiliza normalmente `http://10.0.2.2:3000`.
@@ -114,3 +114,7 @@ Fuera de esta versión: fotografía, recuperación de contraseña por correo, re
 - https://docs.expo.dev/build/setup/
 - https://fastify.dev/docs/latest/
 - https://postgis.net/documentation/
+
+## Zonas y archivos de usuarios
+
+Se incluyen macrozonas de Valdivia con sus colores y exploración por polígono. Los usuarios adjuntan fotos y videos a sus avistamientos; después de su revisión se consultan desde el punto del mapa y la zona. MongoDB guarda los metadatos y el almacenamiento local o Google Cloud Storage conserva los archivos. Consultar [configuración y límites](docs/zonas-y-videos.md). Google Cloud y MongoDB Atlas requieren configuración posterior; las cuentas aún no están creadas.

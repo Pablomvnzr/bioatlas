@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -17,6 +18,7 @@ import { reportInputSchema, reportsSchema, sessionSchema, type Report } from '@b
 import { useSession } from '../../Session';
 import { apiRequest } from '../../api';
 import Map from '../../Map';
+import MediaGallery from '../media/MediaGallery';
 
 function Button({
   title,
@@ -77,6 +79,7 @@ const statusLabels = {
   rejected: 'No aceptado',
 };
 export default function CommunityScreen() {
+  const [mediaReport, setMediaReport] = useState<{ report: Report; own: boolean } | null>(null);
   const { session, loading, save } = useSession();
   const client = useQueryClient();
   const [register, setRegister] = useState(false),
@@ -311,6 +314,10 @@ export default function CommunityScreen() {
                             {report.longitude.toFixed(5)}
                           </Text>
                           {report.reviewNote && <Text>Revisión: {report.reviewNote}</Text>}
+                          <Button
+                            title="Fotos y videos"
+                            onPress={() => setMediaReport({ report, own: tab === 'mine' })}
+                          />
                           {tab === 'admin' && (
                             <Button
                               title="Revisar avistamiento"
@@ -387,6 +394,7 @@ export default function CommunityScreen() {
               >
                 <Text style={s.link}>Cerrar sesión</Text>
               </Pressable>
+              {tab === 'admin' && <MediaGallery moderation />}
             </>
           )}
           {!!message && (
@@ -395,6 +403,26 @@ export default function CommunityScreen() {
             </Text>
           )}
         </ScrollView>
+        <Modal
+          visible={!!mediaReport}
+          onRequestClose={() => setMediaReport(null)}
+          animationType="slide"
+        >
+          <SafeAreaView style={s.page}>
+            <ScrollView contentContainerStyle={s.content}>
+              <Button title="Volver a mis avistamientos" onPress={() => setMediaReport(null)} />
+              {mediaReport && (
+                <>
+                  <Text style={s.heading}>{mediaReport.report.scientificName}</Text>
+                  <MediaGallery
+                    reportId={mediaReport.report.id}
+                    canUpload={mediaReport.own && mediaReport.report.status !== 'rejected'}
+                  />
+                </>
+              )}
+            </ScrollView>
+          </SafeAreaView>
+        </Modal>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

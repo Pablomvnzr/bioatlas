@@ -6,6 +6,15 @@ jobs:
   check:
     runs-on: ubuntu-latest
     services:
+      mongo:
+        image: mongo:8.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.adminCommand({ping:1}).ok'"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
       db:
         image: postgis/postgis:17-3.5
         env:
@@ -21,6 +30,7 @@ jobs:
           --health-retries 15
     env:
       DATABASE_URL: postgres://bioatlas:bioatlas_ci@localhost:5432/bioatlas
+      MONGODB_URI: mongodb://127.0.0.1:27017/bioatlas_ci
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -35,3 +45,4 @@ jobs:
       - run: pnpm format:check
       - run: node apps/api/scripts/migrate.ts
       - run: pnpm test
+      - run: docker build -t bioatlas-api:check .

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { boundsSchema, type Bounds, type Observation } from '@bioatlas/contracts';
+import { boundsSchema, type Bounds, type Observation, type Zone } from '@bioatlas/contracts';
 import { apiBase } from './api';
 
 export const initialBounds: Bounds = {
@@ -18,6 +18,10 @@ export default function Map({
   onSelect,
   onPick,
   point,
+  zones = [],
+  selectedZoneId,
+  onExploreZone,
+  focusBounds,
 }: {
   items?: Observation[];
   bounds?: Bounds;
@@ -25,6 +29,10 @@ export default function Map({
   onSelect?: (id: string) => void;
   onPick?: (p: Point) => void;
   point?: Point;
+  zones?: Zone[];
+  selectedZoneId?: string;
+  onExploreZone?: (id: string) => void;
+  focusBounds?: Bounds;
 }) {
   const ref = useRef<WebView>(null);
   const startBounds = useRef(bounds);
@@ -39,6 +47,12 @@ export default function Map({
   useEffect(() => {
     if (ready) inject('setRecords', items);
   }, [ready, items]);
+  useEffect(() => {
+    if (ready) inject('setAreas', { items: zones, selected: selectedZoneId });
+  }, [ready, zones, selectedZoneId]);
+  useEffect(() => {
+    if (ready && focusBounds) inject('setZone', focusBounds);
+  }, [ready, focusBounds]);
   useEffect(() => {
     if (ready && point) inject('setPick', point);
   }, [ready, point]);
@@ -57,6 +71,7 @@ export default function Map({
         source={{ uri: url }}
         style={{ flex: 1 }}
         javaScriptEnabled
+        webviewDebuggingEnabled={__DEV__}
         cacheEnabled
         applicationNameForUserAgent="BioAtlas/0.1"
         mixedContentMode="never"
@@ -85,6 +100,8 @@ export default function Map({
               if (parsed.success) onBounds?.(parsed.data);
             }
             if (data.type === 'select' && typeof data.id === 'string') onSelect?.(data.id);
+            if (data.type === 'exploreZone' && typeof data.id === 'string')
+              onExploreZone?.(data.id);
             if (
               data.type === 'pick' &&
               Number.isFinite(data.latitude) &&

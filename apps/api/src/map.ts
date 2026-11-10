@@ -1,9 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import type { FastifyInstance } from 'fastify';
+import { registerTiles } from './tiles.ts';
 const require = createRequire(import.meta.url);
 
 export function registerMap(app: FastifyInstance) {
+  registerTiles(app);
   for (const [file, type] of [
     ['leaflet.js', 'application/javascript'],
     ['leaflet.css', 'text/css'],
@@ -20,15 +22,23 @@ export function registerMap(app: FastifyInstance) {
       .type('text/html')
       .header(
         'Content-Security-Policy',
-        "default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src https://tile.openstreetmap.org data:; connect-src 'none'; base-uri 'none'; frame-ancestors 'none'",
+        "default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; base-uri 'none'; frame-ancestors 'none'",
       ).send(`<!doctype html>
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <link rel="stylesheet" href="/map/leaflet.css"><style>html,body,#map{height:100%;margin:0;background:#e3ebdd} .leaflet-control-attribution{font-size:10px}</style></head>
 <body><div id="map" aria-label="Mapa de biodiversidad"></div><script src="/map/leaflet.js"></script><script>
 const send=(data)=>window.ReactNativeWebView&&window.ReactNativeWebView.postMessage(JSON.stringify(data));
 const map=L.map('map').setView([-39.8142,-73.2459],12);
-const layer=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',keepBuffer:1}).addTo(map);
+const layer=L.tileLayer('/map/tiles/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',keepBuffer:1}).addTo(map);
+map.createPane('zones');map.getPane('zones').style.zIndex=350;
+const zones=L.layerGroup().addTo(map);
 const markers=L.layerGroup().addTo(map); let picked=null;
+window.setAreas=(data)=>{zones.clearLayers();data.items.forEach(zone=>{
+ const active=zone.id===data.selected;
+ const polygon=L.geoJSON(zone.geometry,{pane:'zones',style:{color:zone.color,weight:active?4:2,fillColor:zone.color,fillOpacity:active?.24:.12,dashArray:zone.kind==='reference_area'?'5 4':undefined}}).addTo(zones);
+ polygon.on('click',()=>send({type:'exploreZone',id:zone.id}));
+ const label=document.createElement('span');label.textContent=zone.name+' · Ver información';polygon.bindTooltip(label,{sticky:true});
+});};
 window.setRecords=(items)=>{markers.clearLayers();items.forEach(item=>{
  const label=document.createElement('span');label.textContent=item.commonName||item.scientificName;
  L.circleMarker([item.latitude,item.longitude],{radius:7,color:'#fff',weight:2,fillColor:'#245c50',fillOpacity:.9}).bindTooltip(label).on('click',()=>send({type:'select',id:item.id})).addTo(markers);

@@ -1,4 +1,8 @@
 import type { ExpoConfig } from 'expo/config';
+if (process.env.EAS_BUILD === 'true' && !/^https:\/\//.test(process.env.EXPO_PUBLIC_API_URL ?? ''))
+  throw Error(
+    'La compilación instalable requiere EXPO_PUBLIC_API_URL con la dirección HTTPS de la API publicada.',
+  );
 const config: ExpoConfig = {
   name: 'BioAtlas',
   slug: 'bioatlas',
@@ -7,6 +11,17 @@ const config: ExpoConfig = {
   userInterfaceStyle: 'light',
   ios: { supportsTablet: true, bundleIdentifier: 'cl.bioatlas.mobile' },
   android: { package: 'cl.bioatlas.mobile' },
-  plugins: ['expo-secure-store'],
+  plugins: [
+    'expo-secure-store',
+    [
+      'expo-image-picker',
+      {
+        photosPermission: 'Permite seleccionar un video para publicarlo en BioAtlas.',
+        cameraPermission: false,
+        microphonePermission: false,
+      },
+    ],
+    'expo-video',
+  ],
 };
 export default config;
