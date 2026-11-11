@@ -36,7 +36,7 @@ export function createSupabaseStorage(
         signal: AbortSignal.timeout(90000),
         headers: {
           apikey: key!,
-          Authorization: `Bearer ${key}`,
+          ...(key!.startsWith('sb_secret_') ? {} : { Authorization: `Bearer ${key}` }),
           'Content-Type': mime,
           'x-upsert': 'false',
           'Cache-Control': 'max-age=120',

@@ -30,6 +30,13 @@ test('Supabase keeps private storage, authorizes requests and signs only trusted
     directory = await mkdtemp(join(tmpdir(), 'bioatlas-storage-test-'));
   try {
     await storage.verify();
+    await createSupabaseStorage(
+      { ...env, SUPABASE_SERVICE_ROLE_KEY: 'sb_secret_test' },
+      request,
+    ).verify();
+    const secretHeaders = new Headers(requests.at(-1)?.init?.headers);
+    assert.equal(secretHeaders.get('apikey'), 'sb_secret_test');
+    assert.equal(secretHeaders.has('Authorization'), false);
     publicBucket = true;
     await assert.rejects(() => storage.verify(), /privado/);
     publicBucket = false;
