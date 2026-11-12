@@ -2,9 +2,13 @@
 
 La aplicación conserva su backend propio. Render ejecuta la API, Supabase aloja PostgreSQL/PostGIS y los archivos privados, y MongoDB Atlas guarda los metadatos multimedia. La versión Android instalable debe apuntar a la URL HTTPS pública de Render.
 
-## Estado de preparación
+## Estado verificado: 12 de noviembre de 2026
 
-El repositorio incluye un Dockerfile, la definición gratuita `render.yaml`, un adaptador de Supabase Storage y una pantalla de espera para el arranque del servidor. Esto por sí solo no significa que el servicio esté publicado. La publicación termina al comprobar la URL pública y una instalación Android usando datos móviles con el PC apagado.
+El backend está publicado en https://bioatlas-api-1vcg.onrender.com con Render Free. Se comprobaron desde internet `/health`, `/map`, las 14 zonas, la búsqueda de avistamientos y el acceso a MongoDB desde la API. También se probó subir, descargar mediante enlace firmado y eliminar una imagen de prueba en el bucket privado de Supabase.
+
+La restauración conservó 1 cuenta, 1 reporte, 1.138 avistamientos y 1.150 referencias de fotos. El respaldo completo del 11 de noviembre indicó 0 archivos multimedia en MongoDB local; no había videos o fotos subidos por usuarios que migrar. Los originales locales se conservaron. Las 22 pruebas automatizadas pasaron antes de publicar.
+
+Pendiente: generar el APK con la cuenta Expo del propietario y probar inicio de sesión, envío de fotos/videos y moderación desde el teléfono con datos móviles. La publicación del backend no equivale a haber completado esa prueba final del teléfono.
 
 ## Configuración
 
@@ -15,6 +19,7 @@ El repositorio incluye un Dockerfile, la definición gratuita `render.yaml`, un 
 5. Conectar el repositorio privado a Render y seleccionar el servicio Docker de `render.yaml`, con plan Free. Completar las variables que figuran como `sync: false`. El proceso verifica la configuración, aplica las migraciones pendientes e inicia la API. No crear una base PostgreSQL gratuita de Render: es temporal.
 
 Variables privadas del backend: `DATABASE_URL`, `MONGODB_URI`, `SUPABASE_SERVICE_ROLE_KEY`.
+`SUPABASE_SERVICE_ROLE_KEY` admite la nueva Secret key (`sb_secret_...`); el nombre se conserva por compatibilidad. El Dockerfile carga el certificado público oficial `apps/api/certs/supabase-ca.crt` mediante `NODE_EXTRA_CA_CERTS`, manteniendo `sslmode=verify-full` en PostgreSQL.
 Variables de configuración: `SUPABASE_URL`, `SUPABASE_STORAGE_BUCKET=bioatlas-media`, `MONGODB_DATABASE=bioatlas`, `MEDIA_STORAGE=supabase`.
 
 Las migraciones habilitan RLS y retiran permisos de lectura directa de las tablas de la aplicación a los roles públicos de Supabase. Las cuentas y la moderación siguen pasando por nuestra API. El adaptador rechaza un bucket público, mantiene los archivos pendientes privados y devuelve enlaces firmados de dos minutos solo después de verificar permisos.
