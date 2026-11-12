@@ -6,6 +6,8 @@ if (process.env.EAS_BUILD === 'true' && !/^https:\/\//.test(process.env.EXPO_PUB
 const config: ExpoConfig = {
   name: 'BioAtlas',
   slug: 'bioatlas',
+  owner: 'thecharles445',
+  extra: { eas: { projectId: 'cd54013c-7066-4e18-a822-f1ce44688b87' } },
   version: '0.1.0',
   orientation: 'portrait',
   userInterfaceStyle: 'light',
