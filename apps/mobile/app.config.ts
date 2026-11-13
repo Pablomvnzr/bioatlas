@@ -8,12 +8,26 @@ const config: ExpoConfig = {
   slug: 'bioatlas',
   owner: 'thecharles445',
   extra: { eas: { projectId: 'cd54013c-7066-4e18-a822-f1ce44688b87' } },
-  version: '0.1.0',
+  version: '0.1.1',
   orientation: 'portrait',
   userInterfaceStyle: 'light',
   ios: { supportsTablet: true, bundleIdentifier: 'cl.bioatlas.mobile' },
-  android: { package: 'cl.bioatlas.mobile' },
+  android: { package: 'cl.bioatlas.mobile', versionCode: 2 },
   plugins: [
+    [
+      'expo-location',
+      {
+        locationWhenInUsePermission:
+          'BioAtlas usa tu ubicación para centrar el mapa y ubicar tus avistamientos.',
+        isAndroidBackgroundLocationEnabled: false,
+        isAndroidForegroundServiceEnabled: false,
+        isIosBackgroundLocationEnabled: false,
+        isAndroidMotionActivityEnabled: false,
+        locationAlwaysPermission: false,
+        locationAlwaysAndWhenInUsePermission: false,
+        motionUsagePermission: false,
+      },
+    ],
     'expo-secure-store',
     [
       'expo-image-picker',

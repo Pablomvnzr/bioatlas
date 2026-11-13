@@ -264,7 +264,9 @@ export default function CommunityScreen() {
                     onChange={setDescription}
                     multiline
                   />
-                  <Text style={s.label}>Toca el mapa para ubicar el avistamiento</Text>
+                  <Text style={s.label}>
+                    Toca el mapa o pulsa «Mi ubicación» para ubicar el avistamiento
+                  </Text>
                   <View style={{ height: 240, borderRadius: 12, overflow: 'hidden' }}>
                     <Map
                       point={point}

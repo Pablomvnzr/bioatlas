@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import * as Location from 'expo-location';
 import { WebView } from 'react-native-webview';
 import { boundsSchema, type Bounds, type Observation, type Zone } from '@bioatlas/contracts';
 import { apiBase } from './api';
@@ -40,6 +41,71 @@ export default function Map({
     [loaded, setLoaded] = useState(false),
     [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const [locating, setLocating] = useState(false);
+  const [gpsPoint, setGpsPoint] = useState<Point>();
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  async function locate() {
+    if (locating) return;
+    setLocating(true);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (!mounted.current) return;
+      if (!permission.granted) {
+        Alert.alert(
+          'Permiso de ubicación',
+          'Puedes seguir usando el mapa sin GPS. Para usar tu ubicación, permite el acceso en los ajustes de BioAtlas.',
+          permission.canAskAgain
+            ? [{ text: 'Entendido' }]
+            : [
+                { text: 'Ahora no', style: 'cancel' },
+                {
+                  text: 'Abrir ajustes',
+                  onPress: () => {
+                    void Linking.openSettings();
+                  },
+                },
+              ],
+        );
+        return;
+      }
+      if (!(await Location.hasServicesEnabledAsync()))
+        throw Error('Activa la ubicación del teléfono y vuelve a intentarlo.');
+      const location = await Promise.race([
+        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(
+            () =>
+              reject(
+                Error('El GPS está tardando. Acércate a una ventana o elige el punto en el mapa.'),
+              ),
+            20000,
+          );
+        }),
+      ]);
+      if (!mounted.current) return;
+      const position = { latitude: location.coords.latitude, longitude: location.coords.longitude };
+      setGpsPoint(position);
+      onPick?.(position);
+    } catch (error) {
+      if (mounted.current)
+        Alert.alert(
+          'No pudimos obtener tu ubicación',
+          error instanceof Error
+            ? error.message
+            : 'Inténtalo nuevamente o elige el punto en el mapa.',
+        );
+    } finally {
+      if (timer) clearTimeout(timer);
+      if (mounted.current) setLocating(false);
+    }
+  }
   const inject = (fn: string, value: unknown) =>
     ref.current?.injectJavaScript(
       `window.${fn}(${JSON.stringify(value).replace(/</g, '\\u003c')});true;`,
@@ -56,6 +122,16 @@ export default function Map({
   useEffect(() => {
     if (ready && point) inject('setPick', point);
   }, [ready, point]);
+  useEffect(() => {
+    if (!ready || !gpsPoint) return;
+    inject('setZone', {
+      south: Math.max(-90, gpsPoint.latitude - 0.005),
+      north: Math.min(90, gpsPoint.latitude + 0.005),
+      west: Math.max(-180, gpsPoint.longitude - 0.005),
+      east: Math.min(180, gpsPoint.longitude + 0.005),
+    });
+    inject('setPick', gpsPoint);
+  }, [ready, gpsPoint]);
   useEffect(() => {
     const timer = setTimeout(() => {
       if (!loaded) setFailed(true);
@@ -115,6 +191,18 @@ export default function Map({
           }
         }}
       />
+      <Pressable
+        style={[s.gps, locating && { opacity: 0.65 }]}
+        accessibilityRole="button"
+        accessibilityLabel={
+          onPick ? 'Usar mi ubicación para este avistamiento' : 'Centrar mapa en mi ubicación'
+        }
+        accessibilityState={{ disabled: locating, busy: locating }}
+        disabled={locating}
+        onPress={() => void locate()}
+      >
+        <Text style={s.gpsText}>{locating ? 'Buscando GPS…' : '◎ Mi ubicación'}</Text>
+      </Pressable>
       {failed && (
         <View style={s.notice}>
           <Text>No pudimos cargar el mapa. Comprueba la conexión.</Text>
@@ -135,6 +223,17 @@ export default function Map({
   );
 }
 const s = StyleSheet.create({
+  gps: {
+    position: 'absolute',
+    right: 12,
+    bottom: 30,
+    backgroundColor: '#245C50',
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    borderRadius: 24,
+    elevation: 4,
+  },
+  gpsText: { color: '#fff', fontWeight: '700' },
   notice: {
     position: 'absolute',
     top: 12,
