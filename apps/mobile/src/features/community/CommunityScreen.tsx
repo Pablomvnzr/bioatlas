@@ -14,7 +14,16 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { reportInputSchema, reportsSchema, sessionSchema, type Report } from '@bioatlas/contracts';
+import {
+  reportInputSchema,
+  reportSchema,
+  reportsSchema,
+  sessionSchema,
+  type Report,
+} from '@bioatlas/contracts';
+import type { ImagePickerAsset } from 'expo-image-picker';
+import AttachmentPicker from '../media/AttachmentPicker';
+import { uploadMedia, validateAttachment } from '../media/uploadMedia';
 import { useSession } from '../../Session';
 import { apiRequest } from '../../api';
 import Map from '../../Map';
@@ -80,6 +89,8 @@ const statusLabels = {
 };
 export default function CommunityScreen() {
   const [mediaReport, setMediaReport] = useState<{ report: Report; own: boolean } | null>(null);
+  const [attachment, setAttachment] = useState<ImagePickerAsset | null>(null);
+  const [savedReport, setSavedReport] = useState<Report | null>(null);
   const { session, loading, save } = useSession();
   const client = useQueryClient();
   const [register, setRegister] = useState(false),
@@ -137,6 +148,7 @@ export default function CommunityScreen() {
   }
   async function submit() {
     await perform(async () => {
+      if (attachment) validateAttachment(attachment);
       if (!latitude.trim() || !longitude.trim())
         throw Error('Toca el mapa para elegir la ubicación o escribe las coordenadas.');
       const input = reportInputSchema.safeParse({
@@ -150,7 +162,26 @@ export default function CommunityScreen() {
         throw Error(
           'Revisa los campos: descripción de al menos 10 caracteres, fecha válida sin futuro y coordenadas válidas.',
         );
-      await apiRequest('/v1/reports', session!.token, 'POST', input.data);
+      const report =
+        savedReport ??
+        reportSchema.parse(await apiRequest('/v1/reports', session!.token, 'POST', input.data));
+      setSavedReport(report);
+      if (attachment) {
+        try {
+          await uploadMedia(
+            report.id,
+            session!.token,
+            attachment,
+            `Avistamiento: ${report.scientificName}`.slice(0, 160),
+          );
+        } catch (error) {
+          throw Error(
+            `El avistamiento ya se guardó, pero el archivo no se pudo subir. Pulsa «Reintentar archivo» para enviarlo sin crear otro registro. ${error instanceof Error ? error.message : ''}`,
+          );
+        }
+      }
+      setSavedReport(null);
+      setAttachment(null);
       setSpecies('');
       setDescription('');
       setLatitude('');
@@ -244,6 +275,7 @@ export default function CommunityScreen() {
                     key={value}
                     style={[s.tab, tab === value && s.active]}
                     accessibilityRole="button"
+                    disabled={busy}
                     accessibilityState={{ selected: tab === value }}
                     onPress={() => changeTab(value as typeof tab)}
                   >
@@ -256,32 +288,53 @@ export default function CommunityScreen() {
               {tab === 'new' ? (
                 <>
                   <Text style={s.heading}>Nuevo avistamiento</Text>
-                  <Field label="Especie observada" value={species} onChange={setSpecies} />
-                  <Field label="Fecha (AAAA-MM-DD)" value={date} onChange={setDate} />
-                  <Field
-                    label="Descripción"
-                    value={description}
-                    onChange={setDescription}
-                    multiline
-                  />
-                  <Text style={s.label}>Toca el mapa para ubicar el avistamiento</Text>
-                  <View style={{ height: 240, borderRadius: 12, overflow: 'hidden' }}>
-                    <Map
-                      point={point}
-                      onPick={(p) => {
-                        setLatitude(p.latitude.toFixed(6));
-                        setLongitude(p.longitude.toFixed(6));
-                      }}
+                  {savedReport && (
+                    <Text style={s.message}>
+                      El avistamiento ya está guardado. Falta enviar el archivo adjunto.
+                    </Text>
+                  )}
+                  <View
+                    pointerEvents={busy || savedReport ? 'none' : 'auto'}
+                    style={{ gap: 14, opacity: savedReport ? 0.6 : 1 }}
+                  >
+                    <Field label="Especie observada" value={species} onChange={setSpecies} />
+                    <Field label="Fecha (AAAA-MM-DD)" value={date} onChange={setDate} />
+                    <Field
+                      label="Descripción"
+                      value={description}
+                      onChange={setDescription}
+                      multiline
                     />
+                    <Text style={s.label}>
+                      Toca el mapa o pulsa «Mi ubicación» para ubicar el avistamiento
+                    </Text>
+                    <View style={{ height: 240, borderRadius: 12, overflow: 'hidden' }}>
+                      <Map
+                        point={point}
+                        onPick={(p) => {
+                          setLatitude(p.latitude.toFixed(6));
+                          setLongitude(p.longitude.toFixed(6));
+                        }}
+                      />
+                    </View>
+                    <Field label="Latitud" value={latitude} onChange={setLatitude} numeric />
+                    <Field label="Longitud" value={longitude} onChange={setLongitude} numeric />
                   </View>
-                  <Field label="Latitud" value={latitude} onChange={setLatitude} numeric />
-                  <Field label="Longitud" value={longitude} onChange={setLongitude} numeric />
+                  <AttachmentPicker asset={attachment} onChange={setAttachment} disabled={busy} />
                   <Text style={s.muted}>
                     Envía observaciones propias. Evita publicar ubicaciones sensibles. La ubicación
                     y descripción podrán consultarse durante la revisión.
                   </Text>
                   <Button
-                    title={busy ? 'Enviando…' : 'Enviar a revisión'}
+                    title={
+                      busy
+                        ? 'Enviando avistamiento y archivo…'
+                        : savedReport && attachment
+                          ? 'Reintentar archivo'
+                          : savedReport
+                            ? 'Finalizar sin archivo'
+                            : 'Enviar a revisión'
+                    }
                     disabled={busy}
                     onPress={() => void submit()}
                   />
@@ -386,6 +439,12 @@ export default function CommunityScreen() {
                         void perform(async () => {
                           await apiRequest('/v1/auth/logout', session.token, 'POST');
                           await save(null);
+                          setSavedReport(null);
+                          setAttachment(null);
+                          setSpecies('');
+                          setDescription('');
+                          setLatitude('');
+                          setLongitude('');
                           setTab('mine');
                         }),
                     },

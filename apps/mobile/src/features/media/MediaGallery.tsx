@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, Text, TextInput, View } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system/legacy';
+import { uploadMedia } from './uploadMedia';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { mediaListSchema, type Media } from '@bioatlas/contracts';
 import { apiBase, apiRequest } from '../../api';
@@ -194,34 +194,10 @@ export default function MediaGallery({
   }
   async function upload() {
     if (!asset || !session || !reportId) return;
-    const mime = asset.mimeType;
-    const limit = mime === 'video/mp4' ? 50 : 10;
-    if (!mime || !['video/mp4', 'image/jpeg', 'image/png'].includes(mime)) {
-      setMessage('Selecciona un video MP4 o una imagen JPG/PNG.');
-      return;
-    }
-    if (asset.fileSize && asset.fileSize > limit * 1024 * 1024) {
-      setMessage(`El archivo supera el máximo de ${limit} MB.`);
-      return;
-    }
     setBusy(true);
     setMessage('');
     try {
-      const params = new URLSearchParams({ title: title.trim(), description: description.trim() });
-      const result = await FileSystem.uploadAsync(`${apiBase()}${path}?${params}`, asset.uri, {
-        httpMethod: 'POST',
-        uploadType: FileSystem.FileSystemUploadType.MULTIPART,
-        fieldName: 'file',
-        mimeType: mime,
-        headers: { Authorization: `Bearer ${session.token}` },
-      });
-      if (result.status !== 201) {
-        let message = 'No se pudo subir el archivo.';
-        try {
-          message = JSON.parse(result.body).message ?? message;
-        } catch {}
-        throw Error(message);
-      }
+      await uploadMedia(reportId, session.token, asset, title, description);
       setAsset(null);
       setTitle('');
       setDescription('');

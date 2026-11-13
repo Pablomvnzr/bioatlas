@@ -6,19 +6,35 @@ if (process.env.EAS_BUILD === 'true' && !/^https:\/\//.test(process.env.EXPO_PUB
 const config: ExpoConfig = {
   name: 'BioAtlas',
   slug: 'bioatlas',
-  version: '0.1.0',
+  owner: 'thecharles445',
+  extra: { eas: { projectId: 'cd54013c-7066-4e18-a822-f1ce44688b87' } },
+  version: '0.1.2',
   orientation: 'portrait',
   userInterfaceStyle: 'light',
   ios: { supportsTablet: true, bundleIdentifier: 'cl.bioatlas.mobile' },
-  android: { package: 'cl.bioatlas.mobile' },
+  android: { package: 'cl.bioatlas.mobile', versionCode: 3 },
   plugins: [
+    [
+      'expo-location',
+      {
+        locationWhenInUsePermission:
+          'BioAtlas usa tu ubicación para centrar el mapa y ubicar tus avistamientos.',
+        isAndroidBackgroundLocationEnabled: false,
+        isAndroidForegroundServiceEnabled: false,
+        isIosBackgroundLocationEnabled: false,
+        isAndroidMotionActivityEnabled: false,
+        locationAlwaysPermission: false,
+        locationAlwaysAndWhenInUsePermission: false,
+        motionUsagePermission: false,
+      },
+    ],
     'expo-secure-store',
     [
       'expo-image-picker',
       {
-        photosPermission: 'Permite seleccionar un video para publicarlo en BioAtlas.',
-        cameraPermission: false,
-        microphonePermission: false,
+        photosPermission: 'Permite seleccionar fotos y videos de tus avistamientos.',
+        cameraPermission: 'Permite tomar fotos y grabar videos de tus avistamientos.',
+        microphonePermission: 'Permite grabar el sonido de tus videos de avistamientos.',
       },
     ],
     'expo-video',

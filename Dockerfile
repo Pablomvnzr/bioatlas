@@ -11,5 +11,6 @@ RUN mkdir -p /app/apps/api/data && chown -R node:node /app/apps/api/data
 USER node
 WORKDIR /app/apps/api
 ENV NODE_ENV=production HOST=0.0.0.0
+ENV NODE_EXTRA_CA_CERTS=/app/apps/api/certs/supabase-ca.crt
 EXPOSE 10000
 CMD ["sh", "-c", "node scripts/check-cloud.ts && node scripts/migrate.ts && node src/server.ts"]

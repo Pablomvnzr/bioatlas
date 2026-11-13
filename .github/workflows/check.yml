@@ -4,11 +4,13 @@ permissions:
   contents: read
 jobs:
   check:
-    # MongoDB 8 currently rejects Linux kernels >= 6.19 (SERVER-121912).
+    # Hosted runners also update kernels on pinned Ubuntu images.
     runs-on: ubuntu-24.04
     services:
       mongo:
-        image: mongo:8.0
+        # Test the supported MongoDB 7 baseline until SERVER-136848 is fixed
+        # in an available official MongoDB 8 image. Atlas remains on MongoDB 8.
+        image: mongo:7.0
         ports:
           - 27017:27017
         options: >-
