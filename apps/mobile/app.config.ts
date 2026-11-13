@@ -8,11 +8,11 @@ const config: ExpoConfig = {
   slug: 'bioatlas',
   owner: 'thecharles445',
   extra: { eas: { projectId: 'cd54013c-7066-4e18-a822-f1ce44688b87' } },
-  version: '0.1.1',
+  version: '0.1.2',
   orientation: 'portrait',
   userInterfaceStyle: 'light',
   ios: { supportsTablet: true, bundleIdentifier: 'cl.bioatlas.mobile' },
-  android: { package: 'cl.bioatlas.mobile', versionCode: 2 },
+  android: { package: 'cl.bioatlas.mobile', versionCode: 3 },
   plugins: [
     [
       'expo-location',
@@ -32,9 +32,9 @@ const config: ExpoConfig = {
     [
       'expo-image-picker',
       {
-        photosPermission: 'Permite seleccionar un video para publicarlo en BioAtlas.',
-        cameraPermission: false,
-        microphonePermission: false,
+        photosPermission: 'Permite seleccionar fotos y videos de tus avistamientos.',
+        cameraPermission: 'Permite tomar fotos y grabar videos de tus avistamientos.',
+        microphonePermission: 'Permite grabar el sonido de tus videos de avistamientos.',
       },
     ],
     'expo-video',
