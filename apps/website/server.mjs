@@ -6,6 +6,7 @@ const files = {
   '/style.css': 'style.css',
   '/explorar.html': 'explorar.html',
   '/explorar.js': 'explorar.js',
+  '/theme.js': 'theme.js',
   '/assets/bioatlas-owl.png': 'assets/bioatlas-owl.png',
 };
 for (const name of ['leaflet.js', 'leaflet.css']) {
