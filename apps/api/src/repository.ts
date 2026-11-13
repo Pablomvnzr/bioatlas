@@ -18,7 +18,8 @@ export function createRepository(pool: Pool): ObservationRepository {
       WHERE ST_Intersects(location, ST_MakeEnvelope($1,$2,$3,$4,4326))
         AND ($5 = '' OR scientific_name ILIKE '%' || $5 || '%' OR common_name ILIKE '%' || $5 || '%')
         ${q.zoneId ? 'AND EXISTS (SELECT 1 FROM zones z WHERE z.id=$8 AND ST_Covers(z.boundary,observations.location))' : ''}
-      ORDER BY id LIMIT $6 OFFSET $7`,
+        ${q.source === 'community' ? "AND source='BioAtlas comunitario'" : ''}
+      ORDER BY id ${q.sort === 'newest' ? 'DESC' : 'ASC'} LIMIT $6 OFFSET $7`,
         [
           q.west,
           q.south,

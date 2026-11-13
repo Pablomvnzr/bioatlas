@@ -19,6 +19,13 @@ export function createApp(
     bodyLimit: 16384,
   });
   app.register(rateLimit, { max: 120, timeWindow: '1 minute' });
+  app.addHook('onSend', async (request, reply, payload) => {
+    if (request.method === 'GET' && request.url.split('?')[0] === '/v1/observations') {
+      reply.header('Access-Control-Allow-Origin', '*');
+      reply.header('Cache-Control', 'no-store');
+    }
+    return payload;
+  });
   registerMap(app);
   if (pool) {
     registerCommunity(app, pool);

@@ -12,6 +12,8 @@ export const searchSchema = boundsSchema.safeExtend({
   q: z.string().trim().max(100).default(''),
   limit: z.coerce.number().int().min(1).max(300).default(300),
   offset: z.coerce.number().int().min(0).max(100000).default(0),
+  sort: z.enum(['oldest', 'newest']).default('oldest'),
+  source: z.literal('community').optional(),
   zoneId: z
     .string()
     .regex(/^[a-zA-Z0-9_-]{1,80}$/)

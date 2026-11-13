@@ -20,6 +20,8 @@ test('rejects invalid bounds and unbounded requests', async () => {
       zone + '&limit=301',
       zone + '&offset=-1',
       zone + '&q=' + 'x'.repeat(101),
+      zone + '&sort=invalid',
+      zone + '&source=private',
     ]) {
       assert.equal((await app.inject('/v1/observations?' + query)).statusCode, 400);
     }
@@ -38,6 +40,8 @@ test('empty zone is a successful result', async () => {
   try {
     const result = await app.inject('/v1/observations?' + zone);
     assert.equal(result.statusCode, 200);
+    assert.equal(result.headers['access-control-allow-origin'], '*');
+    assert.equal(result.headers['cache-control'], 'no-store');
     assert.deepEqual(result.json(), { items: [], hasMore: false });
   } finally {
     await app.close();
@@ -72,4 +76,25 @@ test('query is parameterized, search wildcards escaped, pagination bounded', asy
   assert.ok(!String(args[0]).includes("%'_"));
   assert.deepEqual(args[1], [-74, -40, -73, -39, "\\%'\\_", 2, 0]);
   assert.deepEqual(result, { items: [row], hasMore: true });
+});
+test('community feed filters public observations and returns newest records first', async () => {
+  let sql = '';
+  const pool = {
+    query: async (text: string) => {
+      sql = text;
+      return { rows: [] };
+    },
+  } as unknown as Pool;
+  await createRepository(pool).search(
+    searchSchema.parse({
+      west: -74,
+      south: -40,
+      east: -73,
+      north: -39,
+      source: 'community',
+      sort: 'newest',
+    }),
+  );
+  assert.match(sql, /AND source='BioAtlas comunitario'/);
+  assert.match(sql, /ORDER BY id DESC/);
 });
