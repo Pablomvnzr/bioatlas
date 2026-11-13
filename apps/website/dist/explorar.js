@@ -15,6 +15,7 @@ const apiBase = location.hostname.endsWith('.github.io')
 let offset = 0;
 let controller;
 let hasMore = false;
+let usingBackup = false;
 let retryReset = true;
 let filters = { query: '', community: false };
 
@@ -55,6 +56,30 @@ function renderRecord(item) {
   records.append(article);
 }
 
+async function loadGbif(request, start) {
+  const response = await fetch(new URL('assets/valdivia.json', location.href), {
+    signal: request.signal,
+  });
+  if (!response.ok) throw new Error('Respaldo no disponible');
+  const query = filters.query.toLocaleLowerCase('es');
+  const items = (await response.json())
+    .filter(item => [item.scientificName, item.vernacularName].some(name =>
+      name?.toLocaleLowerCase('es').includes(query)))
+    .sort((a, b) => (b.eventDate || '').localeCompare(a.eventDate || ''));
+  return {
+    items: items.slice(start, start + 30).map(item => ({
+      scientificName: item.scientificName,
+      commonName: item.vernacularName,
+      latitude: item.decimalLatitude,
+      longitude: item.decimalLongitude,
+      source: [item.rightsHolder || item.recordedBy, 'GBIF', item.license].filter(Boolean).join(' · '),
+      eventDate: item.eventDate,
+      sourceUrl: 'https://www.gbif.org/occurrence/' + item.key,
+    })),
+    hasMore: items.length > start + 30,
+  };
+}
+
 async function load(reset = true) {
   controller?.abort();
   const request = new AbortController();
@@ -75,15 +100,25 @@ async function load(reset = true) {
   status.textContent = 'Buscando avistamientos…';
   records.setAttribute('aria-busy', 'true');
   try {
-    const response = await fetch(new URL('/v1/observations?' + params, apiBase), {
-      signal: AbortSignal.any([request.signal, AbortSignal.timeout(60000)]),
-      cache: 'no-store',
-    });
-    if (!response.ok) throw new Error('Catálogo no disponible');
-    const data = await response.json();
-    if (!Array.isArray(data.items) || typeof data.hasMore !== 'boolean') {
-      throw new Error('Respuesta inválida');
+    let data;
+    let backup = !reset && usingBackup;
+    try {
+      if (!backup) {
+        const response = await fetch(new URL('/v1/observations?' + params, apiBase), {
+          signal: AbortSignal.any([request.signal, AbortSignal.timeout(60000)]),
+          cache: 'no-store',
+        });
+        if (!response.ok) throw new Error('Catálogo no disponible');
+        data = await response.json();
+        if (!Array.isArray(data.items) || typeof data.hasMore !== 'boolean') {
+          throw new Error('Respuesta inválida');
+        }
+      }
+    } catch (error) {
+      if (request.signal.aborted || filters.community) throw error;
+      backup = true;
     }
+    if (backup) data = await loadGbif(request, reset ? 0 : offset);
     if (controller !== request) return;
     if (reset) {
       offset = 0;
@@ -96,14 +131,23 @@ async function load(reset = true) {
         padding: [18, 18], maxZoom: 15,
       });
     }
+    usingBackup = backup;
     offset += data.items.length;
     hasMore = data.hasMore;
     more.hidden = !hasMore;
+    retry.hidden = !backup;
+    retryReset = true;
     status.textContent = offset
-      ? `${offset} avistamientos · Más recientes primero${hasMore ? ' · Hay más registros disponibles.' : ''}`
-      : 'No encontramos avistamientos con estos filtros.';
+      ? `${offset} avistamientos · Más recientes primero${hasMore ? ' · Hay más registros disponibles.' : ''}${backup ? ' · Respaldo de GBIF. El catálogo en vivo no está disponible.' : ''}`
+      : backup ? 'Sin resultados en el respaldo de GBIF. El catálogo en vivo no está disponible.' : 'No encontramos avistamientos con estos filtros.';
   } catch (error) {
     if (controller !== request || error.name === 'AbortError') return;
+    if (reset && filters.community) {
+      records.replaceChildren();
+      markers.clearLayers();
+      offset = 0;
+      hasMore = false;
+    }
     retryReset = reset;
     status.textContent = 'No pudimos actualizar el catálogo. Vuelve a intentarlo para ver los registros más recientes.';
     retry.hidden = false;
