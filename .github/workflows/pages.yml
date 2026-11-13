@@ -1,6 +1,7 @@
 name: Publish BioAtlas
 
 on:
+  workflow_dispatch:
   push:
     branches: [Pablo]
     paths:
